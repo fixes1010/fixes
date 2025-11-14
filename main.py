@@ -1,4 +1,4 @@
-# main.py - KESİNLEŞMİŞ VE HATASIZ VERSİYON
+# main.py - KESİNLEŞMİŞ VE HATASIZ VERSİYON (Java değil, Python'dır!)
 
 # 1. Eventlet'i import edin ve yamayı uygulayın
 import eventlet 
@@ -25,7 +25,7 @@ DATABASE = 'chat.db'
 DEFAULT_CHANNELS = ['genel-sohbet', 'duyurular', 'kod-yardimi']
 online_users = {} 
 
-# Kullanıcı Adı Renkleri (Hata veren gizli karakterler TEMİZLENDİ)
+# Kullanıcı Adı Renkleri (Gizli karakterler TEMİZLENDİ)
 COLOR_PALETTE = [
     '#7289da', '#43b581', '#faa61a', '#f1c40f', '#e91e63', '#9b59b6', 
     '#3498db', '#e67e22', '#1abc9c', '#e74c3c', '#95a5a6'
@@ -33,7 +33,7 @@ COLOR_PALETTE = [
 def get_random_color():
     return random.choice(COLOR_PALETTE)
 
-# Avatar Arka Plan Renkleri (Hata veren gizli karakterler TEMİZLENDİ)
+# Avatar Arka Plan Renkleri (Gizli karakterler TEMİZLENDİ)
 AVATAR_COLORS = [
     '#5865f2', '#f04747', '#43b581', '#faa61a', '#7289da', '#99aab5', '#36393f'
 ]
@@ -82,8 +82,6 @@ def init_db():
         ''')
         db.commit()
 
-# NOT: init_db() çağrısı, RuntimeError'ı önlemek için dosya sonunda KALDIRILMIŞTIR.
-
 def get_user_data(username):
     db = get_db()
     cursor = db.execute('SELECT username, password_hash, color_code, avatar_color FROM users WHERE username = ?', (username,))
@@ -99,19 +97,14 @@ def register_user(username, password):
     db.commit()
     return user_color
 
-# 🔥 load_messages fonksiyonu (500 Internal Error çözümü)
 def load_messages(channel): 
     db = get_db()
     
-    # Tablo varlığını kontrol et (yoksa çökme olmasın)
     cursor = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='messages'")
     if cursor.fetchone() is None:
-        # Eğer tablo yoksa, tabloyu oluştur ve boş mesaj döndür
         init_db()
-        print("UYARI: 'messages' tablosu bulunamadı. Oluşturuldu ve boş mesaj listesi döndürülüyor.")
         return []
         
-    # Tablo varsa, mesajları yüklemeyi dene
     try:
         cursor = db.execute('SELECT id, author, text, time, author_color FROM messages WHERE channel = ? ORDER BY id DESC LIMIT 50', (channel,))
         messages = cursor.fetchall()
@@ -140,12 +133,12 @@ def update_message_by_id(message_id, new_text, username):
     return db.total_changes > 0
 
 def broadcast_user_list():
+    # online_users.values() zaten doğru formatta (sözlük dizisi) olduğu için Python kısmı doğru.
     emit('update_users', {'users': list(online_users.values())}, broadcast=True)
 
 
 # ----------------- ROTALAR (SAYFA GEÇİŞLERİ) -----------------
 
-# 🔥 KESİN ÇÖZÜM: 'Not Found' hatasını çözen kısa yönlendirme
 @app.route('/')
 def index():
     return redirect('/login') 
@@ -218,7 +211,6 @@ def logout():
 def handle_connect():
     if 'username' in session:
         username = session['username']
-        # Çıkış yapıp tekrar giren kullanıcılar için (RuntimeError çözümü için)
         user_data = get_user_data(username)
         if user_data:
             online_users[request.sid] = {
@@ -283,10 +275,9 @@ def handle_edit_message(data):
     else:
         send("Hata: Mesaj düzenleme yetkiniz yok veya mesaj bulunamadı.", room=request.sid)
 
-# Yerel, stabil ve Eventlet destekli çalıştırma (Render bunu kullanmaz)
+# Yerel çalıştırma
 if __name__ == '__main__':
     print("Eventlet ile stabil sunucu başlatılıyor...")
-    # Uygulama yerelde çalışırken de DB'yi oluşturmayı garanti et
     with app.app_context():
         init_db()
     socketio.run(app, host='0.0.0.0', port=5000)
