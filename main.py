@@ -118,17 +118,25 @@ def update_message_by_id(message_id, new_text, username):
     db.commit()
     return db.total_changes > 0
 
-# 🔥🔥🔥 BURASI DÜZELTİLDİ: Mesaj yükleme hatasına karşı try-except eklendi. 🔥🔥🔥
+# 🔥 KESİN DÜZELTME: Tablo varlığını kontrol ederek veri tabanı hatasını önler (500 Internal Error'ın nedeni).
 def load_messages(channel): 
+    db = get_db()
+    
+    # 1. Mesajlar tablosunun varlığını kontrol et (yoksa çökme olmasın)
+    cursor = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='messages'")
+    if cursor.fetchone() is None:
+        # Eğer tablo yoksa, boş bir mesaj listesi döndür ve hatayı önle
+        print("UYARI: 'messages' tablosu bulunamadı. Boş mesaj listesi döndürülüyor.")
+        return []
+        
+    # 2. Tablo varsa, mesajları yüklemeyi dene
     try:
-        db = get_db()
         cursor = db.execute('SELECT id, author, text, time, author_color FROM messages WHERE channel = ? ORDER BY id DESC LIMIT 50', (channel,))
         messages = cursor.fetchall()
         return messages[::-1]
     except Exception as e:
-        # Hata ayıklama için terminale yazar (Render loglarında görünür)
-        print(f"HATA: Mesajlar yuklenirken bir sorun olustu: {e}")
-        # Hata durumunda boş liste döndürerek sayfanın çökmesini engeller (500 hatasını önler)
+        # Hata oluşursa (örn. sütun hatası), yine de çökme yerine boş döndür
+        print(f"HATA: Mesajlar yuklenirken beklenmedik bir sorun olustu: {e}")
         return []
 
 with app.app_context():
