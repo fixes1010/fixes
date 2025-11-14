@@ -21,13 +21,13 @@ DATABASE = "chat.db"
 DEFAULT_CHANNELS = ['genel-sohbet', 'duyurular', 'kod-yardimi']
 online_users = {} # Kullanıcıları ve session_id'lerini tutar
 
-# Kullanıcı Adı Renkleri (Gizli karakter hataları temizlendi)
+# Kullanıcı Adı Renkleri
 COLOR_PALETTE = [
     '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF6', '#FF8C33', 
     '#8D33FF', '#33FF8D', '#FF3333', '#33A1FF', '#C70039', '#581845',
     '#900C3F', '#FFC300', '#5499C7', '#8E44AD', '#27AE60', '#F39C12'
 ]
-# Avatar Arka Plan Renkleri (Daha kontastlı)
+# Avatar Arka Plan Renkleri
 AVATAR_COLORS = [
     '#900C3F', '#FFC300', '#5499C7', '#8E44AD', '#27AE60', '#F39C12',
     '#0B5345', '#76448A', '#CB4335', '#A04000', '#1F618D', '#9A7D0A'
@@ -53,7 +53,7 @@ def init_db():
     """Veritabanı tablolarını oluşturur."""
     with app.app_context():
         db = get_db()
-        # users tablosuna 'color_code' ve 'avatar_color' sütunları eklendi
+        # users tablosu
         db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
@@ -63,7 +63,7 @@ def init_db():
                 avatar_color TEXT NOT NULL
             )
         """)
-        # messages tablosuna 'color_code' sütunu eklendi
+        # messages tablosu
         db.execute("""
             CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY,
@@ -79,6 +79,7 @@ def init_db():
 # Uygulama başladığında veritabanını başlat
 init_db()
 
+# U+00A0 HATASI BURADAYDI, DÜZELTİLDİ.
 def create_user(username, password):
     """Yeni kullanıcı kaydeder ve rastgele renk atar."""
     db = get_db()
@@ -104,7 +105,6 @@ def get_user_data(username):
 
 def list_channels():
     """Mevcut varsayılan kanalların listesini döndürür."""
-    # Şimdilik sadece varsayılan kanallar var, ileride dinamik kanallar eklenecek
     return DEFAULT_CHANNELS
 
 def save_message(channel, author, text, color_code):
@@ -193,9 +193,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    # SocketIO'dan çıkış sinyali gönder (isteğe bağlı ama temiz)
     if 'username' in session:
-        # Bağlantı kesme mantığı SocketIO disconnect event'ine bırakıldı
         pass 
         
     session.pop('username', None)
@@ -239,7 +237,7 @@ def chat():
                            recipient=None)
 
 
-# 🔥 YENİ DM ROTASI (DM_userA_userB mantığı ile)
+# DM ROTASI
 @app.route('/dm/<string:recipient_username>', methods=['GET'])
 def dm_chat(recipient_username):
     # 1. Oturum kontrolü
@@ -257,7 +255,7 @@ def dm_chat(recipient_username):
     usernames = sorted([sender_username, recipient_username])
     dm_room_name = f"DM_{usernames[0]}_{usernames[1]}"
     
-    # DM odası için mesajları getir (DM odası adı veritabanında channel olarak kayıtlıdır)
+    # DM odası için mesajları getir
     messages = get_messages(dm_room_name)
 
     # 3. Kullanıcının renklerini ve kanalları al
@@ -404,5 +402,4 @@ def handle_edit_message(data):
 # ==================== UYGULAMA BAŞLANGICI ====================
 
 if __name__ == '__main__':
-    # init_db() uygulama bağlamında zaten çağrılıyor, burada sadece çalıştırma komutu
     socketio.run(app, debug=True, port=5000)
