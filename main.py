@@ -195,9 +195,8 @@ def login():
 def logout():
     # SocketIO'dan çıkış sinyali gönder (isteğe bağlı ama temiz)
     if 'username' in session:
-        # Sunucu tarafında SocketIO bağlantısını kesme
-        if request.sid in online_users:
-             del online_users[request.sid]
+        # Bağlantı kesme mantığı SocketIO disconnect event'ine bırakıldı
+        pass 
         
     session.pop('username', None)
     session.pop('user_color', None)
@@ -280,37 +279,53 @@ def dm_chat(recipient_username):
 
 # ==================== SOCKETIO EVENTLERİ ====================
 
+# Online listesini güncelleyen yardımcı fonksiyon
+def update_channel_users(channel):
+    """Belirtilen kanalın güncel online listesini alır ve kanala yayar."""
+    
+    # Yalnızca grup kanalları için online listesini topla
+    channel_users = [
+        {'username': info['username'], 'color_code': get_user_data(info['username'])['color_code']} 
+        for sid, info in online_users.items() if info['channel'] == channel
+    ]
+    
+    # Kanaldaki herkese online listesini gönder
+    emit('update_users', {'users': channel_users}, room=channel, broadcast=True)
+
 @socketio.on('join_channel')
 def handle_join_channel(data):
     """Kullanıcı bir kanala (veya DM odasına) katıldığında tetiklenir."""
     channel = data['channel']
     username = data['username']
     old_channel = data.get('old_channel')
-
+    
     # 1. Eski kanaldan çıkış yap
     if old_channel:
         leave_room(old_channel)
-        # Sadece grup kanallarından çıkarken online listesini güncelle (DM odaları için gerekmez)
+        
+        # Eğer eski kanal grup kanalıysa, oranın online listesini güncelle
         if not old_channel.startswith('DM_'):
-             pass # Eğer gerekiyorsa, burada eski kanalın online listesini güncelleme event'i tetiklenir.
+            # Kullanıcının SID'sinden kanalı kaldır
+            if request.sid in online_users:
+                 online_users[request.sid]['channel'] = channel # Yeni kanala taşı
+            
+            # Eski kanalın online listesini güncelle (çıkış sinyali)
+            update_channel_users(old_channel)
+        else:
+            # Eğer eski kanal DM ise, sadece SID'yi yeni kanala taşı
+            if request.sid in online_users:
+                 online_users[request.sid]['channel'] = channel
 
     # 2. Yeni kanala (veya DM odasına) giriş yap
     join_room(channel)
-
-    # 3. Online kullanıcı listesini güncelleme (Sadece grup sohbetleri için)
-    # DM odaları için online listesi gerekmez, sadece DM odasına özel emit yapılır.
+    
+    # 3. Eğer yeni kanal bir grup kanalıysa, online listesini güncelle
     if not channel.startswith('DM_'):
-        # Bağlanan kullanıcının SID'sini ve kanal bilgisini kaydet
+        # Bağlanan kullanıcının SID'sini ve kanal bilgisini kaydet/güncelle
         online_users[request.sid] = {'username': username, 'channel': channel}
-
-        # Sadece bu kanaldaki online listesini al
-        channel_users = [
-            {'username': info['username'], 'color_code': get_user_data(info['username'])['color_code']} 
-            for sid, info in online_users.items() if info['channel'] == channel
-        ]
         
-        # Kanaldaki herkese online listesini gönder
-        emit('update_users', {'users': channel_users}, room=channel)
+        # Yeni kanalın online listesini gönder
+        update_channel_users(channel)
         
     print(f"[{channel}] {username} katıldı.")
 
@@ -320,20 +335,14 @@ def handle_disconnect():
     """Kullanıcı bağlantısı kesildiğinde tetiklenir."""
     if request.sid in online_users:
         user_info = online_users.pop(request.sid)
-        username = user_info['username']
         channel = user_info['channel']
 
         # Yalnızca grup sohbetinden ayrılırken online listesini güncelle
         if not channel.startswith('DM_'):
-            # Kanalın kalan online listesini yeniden oluştur
-            remaining_users = [
-                {'username': info['username'], 'color_code': get_user_data(info['username'])['color_code']} 
-                for sid, info in online_users.items() if info['channel'] == channel
-            ]
-            # Kanaldaki herkese online listesini gönder
-            emit('update_users', {'users': remaining_users}, room=channel)
+            # Kanalın kalan online listesini yeniden oluştur ve gönder
+            update_channel_users(channel)
             
-        print(f"[{channel}] {username} ayrıldı.")
+        print(f"[{channel}] {user_info['username']} ayrıldı.")
 
 
 @socketio.on('sohbet_mesaji')
