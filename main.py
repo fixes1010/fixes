@@ -1,149 +1,62 @@
-# main.py
 import os
-import time
-import importlib
-import sqlite3
 import random
+import time
+import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-from flask_socketio import SocketIO, join_room, leave_room, emit, disconnect
-import bcrypt
+from flask_socketio import SocketIO, join_room, leave_room, emit, send
+from flask_bcrypt import Bcrypt
 
-# Flask uygulamasını başlatma ve SECRET_KEY belirleme
+# Flask uygulamasını başlatma
 app = Flask(__name__)
-# SECRET_KEY'i çevre değişkenlerinden al veya güvenli bir varsayılan değer kullan
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'cok_gizli_bir_anahtar_degistir')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'cok_gizli_anahtar')
 socketio = SocketIO(app, async_mode='eventlet')
-bcrypt = bcrypt.Bcrypt(app)
+bcrypt = Bcrypt(app)
 
-DATABASE = "chat.db"
+# ==================== GLOBAL IN-MEMORY YAPILANDIRMALAR ====================
+# Hız ve sunum için in-memory (bellek içi) depolama kullanılıyor.
+USERS = {}  # {sid: {username: str, current_room: str, color: str}}
+MESSAGES = {}  # {room_name: [list of messages]}
+ACTIVE_CHANNELS = ['Genel Sohbet', 'Kod Yardımı', 'Duyurular']  # Varsayılan genel kanallar
 
-# ==================== GLOBAL YAPILANDIRMALAR ====================
-DEFAULT_CHANNELS = ['genel-sohbet', 'duyurular', 'kod-yardimi']
-online_users = {} # Kullanıcıları ve session_id'lerini tutar
-
-# Kullanıcı Adı Renkleri
+# Kullanıcı Adı Renkleri (Gizli karakterlerden temizlendi)
 COLOR_PALETTE = [
-    '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF6', '#FF8C33', 
+    '#FF5733', '#33FF57', '#3357FF', '#FF33A1', '#33FFF6', '#FF8C33',
     '#8D33FF', '#33FF8D', '#FF3333', '#33A1FF', '#C70039', '#581845',
     '#900C3F', '#FFC300', '#5499C7', '#8E44AD', '#27AE60', '#F39C12'
 ]
-# Avatar Arka Plan Renkleri
-AVATAR_COLORS = [
-    '#900C3F', '#FFC300', '#5499C7', '#8E44AD', '#27AE60', '#F39C12',
-    '#0B5345', '#76448A', '#CB4335', '#A04000', '#1F618D', '#9A7D0A'
-]
 
-def get_random_color():
-    """Rastgele bir kullanıcı adı rengi döndürür."""
+# Basit In-Memory Kullanıcı Veritabanı
+DUMMY_DB = {} # {username: password_hash}
+
+def get_user_color_and_init(username):
+    """Kullanıcı rengini alır veya yeni bir renk atar."""
+    # Renk ataması kayıt sırasında yapılır, burada sadece kontrol edelim
+    for user_info in USERS.values():
+        if user_info['username'] == username:
+            return user_info['color']
+    
+    # Eğer kullanıcı USERS listesinde yoksa (örneğin yeniden bağlandı)
     return random.choice(COLOR_PALETTE)
 
-def get_random_avatar_color():
-    """Rastgele bir avatar arka plan rengi döndürür."""
-    return random.choice(AVATAR_COLORS)
 
-
-# ==================== VERİTABANI YÖNETİMİ ====================
-
-def get_db():
-    db = sqlite3.connect(DATABASE)
-    db.row_factory = sqlite3.Row
-    return db
-
-def init_db():
-    """Veritabanı tablolarını oluşturur."""
-    with app.app_context():
-        db = get_db()
-        # users tablosu
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                color_code TEXT NOT NULL,
-                avatar_color TEXT NOT NULL
-            )
-        """)
-        # messages tablosu
-        db.execute("""
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY,
-                channel TEXT NOT NULL,
-                author TEXT NOT NULL,
-                text TEXT NOT NULL,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                color_code TEXT NOT NULL
-            )
-        """)
-        db.commit()
-
-# Uygulama başladığında veritabanını başlat
-init_db()
-
-# U+00A0 HATASI BURADAYDI, DÜZELTİLDİ.
-def create_user(username, password):
-    """Yeni kullanıcı kaydeder ve rastgele renk atar."""
-    db = get_db()
+def get_online_users():
+    """Tüm online kullanıcıları ve renklerini döndürür."""
+    online_list = []
+    # USERS sözlüğünden yalnızca username ve color bilgisini çek
+    unique_users = {}
+    for user_info in USERS.values():
+        username = user_info['username']
+        if username not in unique_users:
+            unique_users[username] = {'username': username, 'color': user_info['color']}
     
-    # Kullanıcıya rastgele renk kodu ve avatar rengi ata
-    color_code = get_random_color()
-    avatar_color = get_random_avatar_color()
-    
-    password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-    try:
-        db.execute("INSERT INTO users (username, password_hash, color_code, avatar_color) VALUES (?, ?, ?, ?)",
-                   (username, password_hash, color_code, avatar_color))
-        db.commit()
-        return True, color_code, avatar_color
-    except sqlite3.IntegrityError:
-        return False, None, None
-
-def get_user_data(username):
-    """Kullanıcı adıyla tüm verilerini (renk dahil) getirir."""
-    db = get_db()
-    user = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
-    return user
-
-def list_channels():
-    """Mevcut varsayılan kanalların listesini döndürür."""
-    return DEFAULT_CHANNELS
-
-def save_message(channel, author, text, color_code):
-    """Mesajı veritabanına kaydeder."""
-    db = get_db()
-    db.execute("INSERT INTO messages (channel, author, text, color_code) VALUES (?, ?, ?, ?)",
-               (channel, author, text, color_code))
-    db.commit()
-
-def delete_message_db(message_id, author):
-    """Belirtilen ID'ye sahip mesajı siler (Yazar kontrolü ile)."""
-    db = get_db()
-    cursor = db.execute("DELETE FROM messages WHERE id = ? AND author = ?", (message_id, author))
-    db.commit()
-    return cursor.rowcount > 0
-
-def edit_message_db(message_id, author, new_text):
-    """Belirtilen ID'ye sahip mesajı günceller (Yazar kontrolü ile)."""
-    db = get_db()
-    cursor = db.execute("UPDATE messages SET text = ? WHERE id = ? AND author = ?", (new_text, message_id, author))
-    db.commit()
-    return cursor.rowcount > 0
-
-
-def get_messages(channel):
-    """Belirtilen kanalın son 50 mesajını zaman sırasına göre getirir."""
-    db = get_db()
-    messages = db.execute("SELECT id, channel, author, text, strftime('%H:%M', timestamp) AS time, color_code FROM messages WHERE channel = ? ORDER BY timestamp DESC LIMIT 50",
-                          (channel,)).fetchall()
-    # En yeni mesajlar altta olacak şekilde sıralamayı tersine çevir
-    return list(reversed(messages))
-
+    return list(unique_users.values())
 
 # ==================== YÖNLENDİRMELER (ROUTES) ====================
 
 @app.route('/')
 def index():
     if 'username' in session:
-        return redirect(url_for('chat'))
+        return redirect(url_for('chat', room=ACTIVE_CHANNELS[0]))
     return redirect(url_for('login'))
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -152,53 +65,40 @@ def register():
         username = request.form.get('username').strip()
         password = request.form.get('password').strip()
         
-        # Basit doğrulama
         if not username or not password:
-            return render_template('register.html', error="Kullanıcı adı ve şifre boş bırakılamaz.")
-
-        success, color_code, avatar_color = create_user(username, password)
-
-        if success:
-            session['username'] = username
-            session['user_color'] = color_code
-            session['avatar_color'] = avatar_color
-            return redirect(url_for('chat'))
-        else:
+            return render_template('register.html', error="Alanlar boş bırakılamaz.")
+        
+        if username in DUMMY_DB:
             return render_template('register.html', error="Kullanıcı adı zaten alınmış.")
+        
+        # Yeni kullanıcı oluştur
+        password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
+        DUMMY_DB[username] = password_hash
+        session['username'] = username
+        
+        return redirect(url_for('chat', room=ACTIVE_CHANNELS[0]))
     
     return render_template('register.html')
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    success_message = request.args.get('success')
-    
     if request.method == 'POST':
         username = request.form.get('username').strip()
         password = request.form.get('password').strip()
         
-        user = get_user_data(username)
-        
-        if user and bcrypt.check_password_hash(user['password_hash'], password):
-            # Giriş başarılı: Renk kodlarını oturuma kaydet
-            session['username'] = user['username']
-            session['user_color'] = user['color_code'] # Kullanıcı adı rengi
-            session['avatar_color'] = user['avatar_color'] # Avatar arka plan rengi
-            return redirect(url_for('chat'))
+        if username in DUMMY_DB and bcrypt.check_password_hash(DUMMY_DB[username], password):
+            session['username'] = username
+            return redirect(url_for('chat', room=ACTIVE_CHANNELS[0]))
         else:
             error = "Kullanıcı adı veya şifre yanlış."
             return render_template('login.html', error=error)
             
-    return render_template('login.html', success_message=success_message)
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    if 'username' in session:
-        pass 
-        
     session.pop('username', None)
-    session.pop('user_color', None)
-    session.pop('avatar_color', None)
     return redirect(url_for('login'))
 
 
@@ -208,198 +108,201 @@ def chat():
         return redirect(url_for('login'))
 
     username = session['username']
-    
-    # URL'den 'channel' parametresini al, yoksa varsayılan kanalı kullan
-    channel = request.args.get('channel', DEFAULT_CHANNELS[0])
-    
-    # Geçersiz bir kanal adı gelirse, tekrar varsayılana yönlendir
-    if channel not in DEFAULT_CHANNELS:
-        return redirect(url_for('chat', channel=DEFAULT_CHANNELS[0]))
-    
-    # Kanalın mesajlarını veritabanından getir
-    messages = get_messages(channel)
-    
-    # Kullanıcıya ait renkleri oturumdan al
-    user_color = session.get('user_color', '#7289DA')
-    avatar_color = session.get('avatar_color', '#F99F1E')
+    room = request.args.get('room', ACTIVE_CHANNELS[0])
 
-    # Tüm kanalları template'e gönder
-    channels_all = list_channels()
+    # Geçersiz oda kontrolü ve DM/Grup ayrımı
+    is_dm = room.startswith('DM_')
+    
+    if not is_dm and room not in ACTIVE_CHANNELS:
+        return redirect(url_for('chat', room=ACTIVE_CHANNELS[0]))
+
+    # DM odası için alıcı ismini belirleme
+    recipient = None
+    if is_dm:
+        # DM_user1_user2 formatından diğer kullanıcıyı bul
+        parts = room.split('_')
+        if len(parts) == 3:
+            user1, user2 = parts[1], parts[2]
+            recipient = user2 if user1 == username else user1
+        else:
+            return redirect(url_for('chat', room=ACTIVE_CHANNELS[0])) # Hatalı DM formatı
+
+    # Mesajları in-memory listesinden getir
+    messages = MESSAGES.get(room, [])
     
     return render_template('chat.html',
                            username=username,
-                           user_color=user_color,
-                           avatar_color=avatar_color,
-                           current_channel=channel,
+                           current_room=room,
                            messages=messages,
-                           all_channels=channels_all,
-                           is_dm=False, # Normal sohbet kanalı
-                           recipient=None)
+                           all_channels=ACTIVE_CHANNELS,
+                           is_dm=is_dm,
+                           recipient=recipient)
 
 
-# DM ROTASI
-@app.route('/dm/<string:recipient_username>', methods=['GET'])
-def dm_chat(recipient_username):
-    # 1. Oturum kontrolü
+# DM başlatma rotası (Kullanıcı Tıklamasıyla Tetiklenir)
+@app.route('/dm/<string:recipient_username>')
+def start_dm(recipient_username):
     if 'username' not in session:
         return redirect(url_for('login'))
-
+        
     sender_username = session['username']
-    
-    # Kendine DM atmayı engelle
     if sender_username == recipient_username:
-         return redirect(url_for('chat')) # Normal sohbete geri gönder
+        return redirect(url_for('chat'))
 
-    # 2. DM odası adını oluşturma:
-    # İki kullanıcı adını alfabetik sıraya koyarak benzersiz bir oda adı oluşturur.
+    # Alfabetik sıraya göre DM odası adı oluştur
     usernames = sorted([sender_username, recipient_username])
     dm_room_name = f"DM_{usernames[0]}_{usernames[1]}"
     
-    # DM odası için mesajları getir
-    messages = get_messages(dm_room_name)
-
-    # 3. Kullanıcının renklerini ve kanalları al
-    user_color = session.get('user_color', '#7289DA')
-    avatar_color = session.get('avatar_color', '#F99F1E')
-    channels_all = list_channels()
-
-    # 4. Template'i DM ayarlarıyla render et
-    return render_template('chat.html', 
-                           username=sender_username,
-                           user_color=user_color,
-                           avatar_color=avatar_color,
-                           current_channel=dm_room_name, # DM odasını mevcut kanal olarak gönder
-                           messages=messages,
-                           all_channels=channels_all,
-                           is_dm=True, # DM olduğunu belirt
-                           recipient=recipient_username) # Kime DM attığımızı belirt
+    return redirect(url_for('chat', room=dm_room_name))
 
 
 # ==================== SOCKETIO EVENTLERİ ====================
 
-# Online listesini güncelleyen yardımcı fonksiyon
-def update_channel_users(channel):
-    """Belirtilen kanalın güncel online listesini alır ve kanala yayar."""
-    
-    # Yalnızca grup kanalları için online listesini topla
-    channel_users = [
-        {'username': info['username'], 'color_code': get_user_data(info['username'])['color_code']} 
-        for sid, info in online_users.items() if info['channel'] == channel
-    ]
-    
-    # Kanaldaki herkese online listesini gönder
-    emit('update_users', {'users': channel_users}, room=channel, broadcast=True)
+def update_all_users_and_channels(room_to_update=None):
+    """Tüm client'lara güncel online listesini ve kanal listesini gönderir."""
+    emit('update_users', 
+         {'users': get_online_users(), 'active_channels': ACTIVE_CHANNELS}, 
+         broadcast=True)
 
-@socketio.on('join_channel')
-def handle_join_channel(data):
-    """Kullanıcı bir kanala (veya DM odasına) katıldığında tetiklenir."""
-    channel = data['channel']
-    username = data['username']
-    old_channel = data.get('old_channel')
-    
-    # 1. Eski kanaldan çıkış yap
-    if old_channel:
-        leave_room(old_channel)
-        
-        # Eğer eski kanal grup kanalıysa, oranın online listesini güncelle
-        if not old_channel.startswith('DM_'):
-            # Kullanıcının SID'sinden kanalı kaldır
-            if request.sid in online_users:
-                 online_users[request.sid]['channel'] = channel # Yeni kanala taşı
-            
-            # Eski kanalın online listesini güncelle (çıkış sinyali)
-            update_channel_users(old_channel)
-        else:
-            # Eğer eski kanal DM ise, sadece SID'yi yeni kanala taşı
-            if request.sid in online_users:
-                 online_users[request.sid]['channel'] = channel
+@socketio.on('connect')
+def handle_connect():
+    username = session.get('username')
+    if not username:
+        # Kullanıcı oturumu yoksa bağlantıyı kes
+        disconnect()
+        return
 
-    # 2. Yeni kanala (veya DM odasına) giriş yap
-    join_room(channel)
+    sid = request.sid
+    # Kullanıcıya ilk kez renk ata
+    user_color = get_user_color_and_init(username) 
     
-    # 3. Eğer yeni kanal bir grup kanalıysa, online listesini güncelle
-    if not channel.startswith('DM_'):
-        # Bağlanan kullanıcının SID'sini ve kanal bilgisini kaydet/güncelle
-        online_users[request.sid] = {'username': username, 'channel': channel}
-        
-        # Yeni kanalın online listesini gönder
-        update_channel_users(channel)
-        
-    print(f"[{channel}] {username} katıldı.")
+    # Kullanıcı bilgisini USERS sözlüğüne kaydet/güncelle
+    USERS[sid] = {'username': username, 'current_room': ACTIVE_CHANNELS[0], 'color': user_color}
 
+    # Varsayılan kanala katıl
+    join_room(ACTIVE_CHANNELS[0])
+    
+    # Tüm kullanıcılara yeni listeyi gönder
+    update_all_users_and_channels()
+    
+    # Giriş mesajı
+    send({'user': 'Server', 'text': f'{username} sohbete katıldı.', 'time': time.strftime('%H:%M'), 'color': '#AAAAAA'}, room=ACTIVE_CHANNELS[0])
+    print(f"CONNECT: {username} - SID: {sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    """Kullanıcı bağlantısı kesildiğinde tetiklenir."""
-    if request.sid in online_users:
-        user_info = online_users.pop(request.sid)
-        channel = user_info['channel']
+    sid = request.sid
+    if sid in USERS:
+        user_info = USERS.pop(sid)
+        username = user_info['username']
+        room = user_info['current_room']
+        
+        # Odadan ayrılma sinyalini yayınla
+        send({'user': 'Server', 'text': f'{username} sohbetten ayrıldı.', 'time': time.strftime('%H:%M'), 'color': '#AAAAAA'}, room=room)
+        
+        # Online listesini güncelle
+        update_all_users_and_channels()
+        print(f"DISCONNECT: {username} - SID: {sid}")
 
-        # Yalnızca grup sohbetinden ayrılırken online listesini güncelle
-        if not channel.startswith('DM_'):
-            # Kanalın kalan online listesini yeniden oluştur ve gönder
-            update_channel_users(channel)
-            
-        print(f"[{channel}] {user_info['username']} ayrıldı.")
+@socketio.on('join_room_request')
+def handle_join_room_request(data):
+    username = session.get('username')
+    sid = request.sid
+    
+    if not username or sid not in USERS:
+        return
+
+    new_room = data['room_name']
+    old_room = USERS[sid]['current_room']
+    
+    # Eski odadan ayrıl
+    leave_room(old_room)
+    
+    # Yeni odaya katıl
+    join_room(new_room)
+    USERS[sid]['current_room'] = new_room
+
+    # Yeni odanın mesajlarını yükle
+    current_messages = MESSAGES.get(new_room, [])
+    emit('load_messages', {'messages': current_messages, 'room_name': new_room})
+    
+    # Online listesini güncelle (Yeni oda bilgisiyle)
+    update_all_users_and_channels()
 
 
 @socketio.on('sohbet_mesaji')
 def handle_chat_message(data):
-    """Yeni bir mesaj geldiğinde veritabanına kaydeder ve kanala yayar."""
-    channel = data['channel']
-    author = data['author']
+    username = session.get('username')
+    sid = request.sid
+    
+    if not username or sid not in USERS:
+        return
+        
+    room = USERS[sid]['current_room']
     text = data['text']
+    user_color = USERS[sid]['color']
     
-    # Kullanıcı verilerini veritabanından çek (renk kodu için)
-    user_data = get_user_data(author)
-    if not user_data:
-        return # Güvenlik kontrolü
-
-    color_code = user_data['color_code']
-    
-    # Mesajı veritabanına kaydet
-    save_message(channel, author, text, color_code)
-
-    # Yayımlanacak mesaj objesini hazırla
     message_data = {
-        'id': get_db().execute("SELECT last_insert_rowid()").fetchone()[0], # Yeni mesajın ID'si
-        'author': author,
+        'author': username,
         'text': text,
-        'channel': channel,
-        'time': time.strftime('%H:%M'), # Anlık zamanı ekle
-        'author_color': color_code, # Kullanıcı adı rengini ekle
+        'room': room,
+        'time': time.strftime('%H:%M'),
+        'author_color': user_color,
     }
     
+    # Mesajı in-memory listesine kaydet
+    if room not in MESSAGES:
+        MESSAGES[room] = []
+    MESSAGES[room].append(message_data)
+
     # Mesajı odaya (kanala veya DM odasına) gönder
-    emit('sohbet_mesaji', message_data, room=channel)
+    emit('sohbet_mesaji', message_data, room=room)
+
+@socketio.on('create_channel')
+def handle_create_channel(data):
+    username = session.get('username')
+    if not username:
+        return
     
+    channel_name = data['channel_name'].strip()
+    if not channel_name or channel_name in ACTIVE_CHANNELS or channel_name.startswith('DM_'):
+        emit('channel_error', {'message': 'Bu kanal adı geçersiz veya zaten var.'})
+        return
 
-@socketio.on('delete_message')
-def handle_delete_message(data):
-    """Mesaj silme isteğini işler."""
-    message_id = data['id']
-    channel = data['channel']
-    author = session.get('username') # Oturumdaki kullanıcı, mesajın yazarı olmalı
+    # Yeni kanalı ekle
+    ACTIVE_CHANNELS.append(channel_name)
+    MESSAGES[channel_name] = [] # Mesaj listesini başlat
 
-    if author and delete_message_db(message_id, author):
-        # Silme başarılıysa, kanaldaki herkese bildir
-        emit('message_deleted', {'id': message_id}, room=channel)
+    # Yeni kanalı tüm kullanıcılara duyur ve online listesini güncelle
+    update_all_users_and_channels()
+    emit('channel_success', {'message': f'Kanal "{channel_name}" başarıyla oluşturuldu.', 'channel_name': channel_name}, room=request.sid)
 
+# Sesli sohbet sinyalleme (WebRTC altyapısı için gerekli)
+@socketio.on('start_voice_chat')
+def handle_start_voice_chat():
+    username = session.get('username')
+    sid = request.sid
+    room = USERS[sid]['current_room']
+    
+    # Odaya sesli sohbet daveti gönder
+    emit('voice_chat_invite', {'user': username, 'room': room}, room=room, include_self=False)
+    emit('voice_chat_status', {'message': 'Sesli sohbet daveti gönderildi. Yanıt bekleniyor.'}, room=request.sid)
 
-@socketio.on('edit_message')
-def handle_edit_message(data):
-    """Mesaj düzenleme isteğini işler."""
-    message_id = data['id']
-    channel = data['channel']
-    new_text = data['text']
-    author = session.get('username') # Oturumdaki kullanıcı, mesajın yazarı olmalı
+@socketio.on('webrtc_signal')
+def handle_webrtc_signal(data):
+    # WebRTC sinyal verisini (SDP, ICE) hedef kullanıcıya veya odaya ilet
+    recipient_sid = data.get('recipient_sid')
+    signal_data = data.get('signal')
+    
+    # Eğer birebir sinyalleme ise (DM)
+    if recipient_sid:
+        emit('webrtc_signal', {'signal': signal_data, 'sender_sid': request.sid}, room=recipient_sid)
+    # Eğer grup sinyalleme ise (Kanal/Grup)
+    else:
+        # Tüm odadakilere gönder (kendisi hariç)
+        room = USERS[request.sid]['current_room']
+        emit('webrtc_signal', {'signal': signal_data, 'sender_sid': request.sid}, room=room, include_self=False)
 
-    if author and edit_message_db(message_id, author, new_text):
-        # Düzenleme başarılıysa, kanaldaki herkese yeni metni gönder
-        emit('message_edited', {'id': message_id, 'text': new_text}, room=channel)
-
-
-# ==================== UYGULAMA BAŞLANGICI ====================
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True)

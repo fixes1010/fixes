@@ -1,126 +1,482 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>FIXES | Sohbet</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sohbet Odası - {{ current_room }}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* CSS GİZLİ KARAKTER HATALARINDAN KAÇINMAK İÇİN INLINE EDİLMİŞTİR */
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-medium: #2d2d2d;
+            --bg-light: #3e3e3e;
+            --text-light: #ffffff;
+            --text-secondary: #aaaaaa;
+            --color-primary: #5865f2; /* Discord Mavisi */
+            --color-success: #33ff57;
+            --color-error: #ff3333;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--bg-medium);
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--bg-light);
+            flex-shrink: 0;
+        }
+
+        .chat-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: var(--bg-light);
+            padding: 15px;
+            border-bottom: 1px solid var(--bg-medium);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .message-input-area {
+            padding: 15px;
+            background-color: var(--bg-light);
+        }
+
+        .message-input-area input {
+            width: 100%;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--bg-medium);
+            color: var(--text-light);
+            outline: none;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .message-box {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 5px 0;
+        }
+        
+        .message-box .user-initial {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 14px;
+            flex-shrink: 0;
+            background-color: #f99f1e; /* Varsayılan Avatar Rengi */
+        }
+
+        .message-box .content {
+            flex-grow: 1;
+        }
+
+        .message-box .content .username {
+            font-weight: bold;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .message-box .content .time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .message-box .content .text {
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            margin-top: 2px;
+            font-size: 15px;
+        }
+
+        .server-message {
+            text-align: center;
+            font-style: italic;
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin: 10px 0;
+        }
+
+        .channel-list, .user-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .list-item {
+            padding: 8px 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-light);
+            text-decoration: none; /* Link stilini kaldırma */
+        }
+
+        .list-item:hover {
+            background-color: var(--bg-light);
+        }
+        
+        .list-item.active {
+            background-color: var(--color-primary);
+            font-weight: 600;
+        }
+
+        .sidebar-section-title {
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-actions button {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--color-primary);
+            color: var(--text-light);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .sidebar-actions button:hover {
+            background-color: #4752c4;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+        }
+
+        .modal-content {
+            background-color: var(--bg-medium);
+            margin: 15% auto;
+            padding: 25px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 400px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        /* Sesli Sohbet Bölümü */
+        .voice-chat-status {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            margin-top: 10px;
+            display: none; /* Başlangıçta gizli */
+        }
+
+        #video-container {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 250px;
+            height: 150px;
+            background-color: black;
+            border: 2px solid var(--color-primary);
+            z-index: 100;
+            display: none; /* Başlangıçta gizli */
+        }
+
+        #local-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
 </head>
-<body data-is-dm="{% if is_dm %}True{% else %}False{% endif %}">
-    <div class="app-container">
+<body>
+
+    <div class="sidebar">
+        <h3 style="color: var(--text-light); margin-bottom: 15px;">{{ username }}</h3>
         
-        <div class="server-sidebar">
-            <div class="server-icon active-server" title="FIXES Ana Sunucu">F</div>
-            <a href="{{ url_for('logout') }}" class="server-icon logout-icon" title="Çıkış Yap">X</a>
+        <div class="sidebar-actions">
+            <button id="createChannelBtn">Grup/Kanal Oluştur</button>
+            <button id="startVoiceChatBtn">Sesli Sohbet Başlat</button>
+            <div id="voice-chat-status" class="voice-chat-status"></div>
+            <a href="{{ url_for('logout') }}" style="text-align: center; margin-top: 10px;">Çıkış Yap</a>
         </div>
 
-        <div class="channel-sidebar">
-            <div class="channel-header">
-                FIXES Ana Sunucu
-            </div>
-            <div class="channel-list">
-                
-                <div class="channel-category">METİN KANALLARI</div>
-                {% for channel in all_channels %}
-                <div class="channel-item {% if not is_dm and channel == current_channel %}active{% endif %}" 
-                     data-channel="{{ channel }}">
+        <div class="sidebar-section-title">
+            Genel Kanallar
+        </div>
+        <ul id="channel-list" class="channel-list">
+            {% for channel in all_channels %}
+                <a href="{{ url_for('chat', room=channel) }}" class="list-item {% if current_room == channel %}active{% endif %}" data-room-name="{{ channel }}">
                     # {{ channel }}
-                </div>
-                {% endfor %}
-                
-                {% if is_dm %}
-                <div class="channel-category">DİREKT MESAJLAR</div>
-                <div class="channel-item dm-item active">
-                    <i class="fas fa-comment"></i> {{ recipient }}
-                </div>
-                {% endif %}
-
-            </div>
-            
-            <div class="user-info">
-                <div class="user-info-avatar" style="background-color: {{ avatar_color }};">
-                    {{ username[0]|upper }}
-                </div>
-                <div class="user-details">
-                    <div class="user-name" style="color: {{ user_color }};">{{ username }}</div>
-                    <div class="user-status">Aktif</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="chat-area">
-            <div class="chat-header">
-                {% if is_dm %}
-                    <i class="fas fa-comment" style="margin-right: 8px;"></i> <span id="current-channel-name">{{ recipient }}</span>
-                {% else %}
-                    <span>#</span> <span id="current-channel-name">{{ current_channel }}</span>
-                {% endif %}
-            </div>
-
-            <ul id="messages" class="messages-list">
-                
-                {% for message in messages %}
-                <li class="message-box" data-id="{{ message.id }}" data-author="{{ message.author }}">
-                    <div class="message-avatar" style="background-color: {{ message.color_code }};">
-                        {{ message.author[0]|upper }}
-                    </div>
-                    
-                    <div class="message-content">
-                        <div class="message-author" style="color: {{ message.color_code }};">
-                            {{ message.author }} <span class="message-time">{{ message.time }}</span>
-                        </div>
-                        <div class="message-text">
-                            {{ message.text }}
-                        </div>
-                        
-                        {% if message.author == username %}
-                        <div class="message-actions">
-                            <i class="fas fa-edit edit-btn" title="Düzenle"></i>
-                            <i class="fas fa-trash-alt delete-btn" title="Sil"></i>
-                        </div>
-                        {% endif %}
-                        
-                    </div>
-                </li>
-                {% endfor %}
-                
-                {% if not is_dm %}
-                <li class="message-box bot-message">
-                    <div class="message-avatar" style="background-color: #43b581;">
-                        B
-                    </div>
-                    <div class="message-content">
-                        <div class="message-author">
-                            FIXES Bot <span class="message-time">00:00</span>
-                        </div>
-                        <div class="message-text">
-                            Hoş geldiniz, **{{ username }}**! **#{{ current_channel }}** kanalına bağlandınız.
-                        </div>
-                    </div>
-                </li>
-                {% endif %}
-                
-            </ul>
-            
-            <form id="form" class="chat-form" action="">
-                <div class="chat-input-container">
-                    {% if is_dm %}
-                        <input id="input" autocomplete="off" placeholder="{{ recipient }} kişisine mesaj gönder" />
-                    {% else %}
-                        <input id="input" autocomplete="off" placeholder="#{{ current_channel }}'e mesaj gönder" />
-                    {% endif %}
-                    <button type="submit">Gönder</button>
-                </div>
-            </form>
-        </div>
+                </a>
+            {% endfor %}
+        </ul>
         
-        <div class="user-list-sidebar" id="user-list-sidebar" style="{% if is_dm %}display: none;{% endif %}">
-            <div class="user-list-category">{% if is_dm %}DM Ayarları{% else %}ÇEVRİMİÇİ KULLANICILAR{% endif %}</div>
-            <ul id="online-users-list" class="online-users-list">
-                </ul>
+        <div class="sidebar-section-title">
+            Çevrimiçi Kullanıcılar
+        </div>
+        <ul id="online-users" class="user-list">
+            </ul>
+    </div>
+
+    <div class="chat-area">
+        <div class="header">
+            <h2>{% if is_dm %}@ {{ recipient }}{% else %}# {{ current_room }}{% endif %}</h2>
+        </div>
+        <div id="messages" class="messages">
+            {% for message in messages %}
+                <div class="message-box">
+                    <div class="user-initial" style="background-color: {{ message.get('author_color', '#f99f1e') }};">{{ message.author[0].upper() }}</div>
+                    <div class="content">
+                        <span class="username" style="color: {{ message.get('author_color', '#f99f1e') }};">{{ message.author }}</span>
+                        <span class="time">{{ message.time }}</span>
+                        <div class="text">{{ message.text }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="message-input-area">
+            <input type="text" id="message-input" placeholder="Mesajınızı yazın..." autofocus>
+        </div>
+    </div>
+    
+    <div id="createChannelModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3>Yeni Kanal Oluştur</h3>
+            <input type="text" id="newChannelName" placeholder="Kanal Adı (örn: proje-tartisma)">
+            <button id="submitNewChannel">Oluştur</button>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <div id="video-container">
+        <video id="local-video" autoplay muted></video>
+        </div>
+
+    <script>
+        // Server'dan gönderilen Python verileri
+        const USERNAME = "{{ username }}";
+        const CURRENT_ROOM = "{{ current_room }}";
+        const IS_DM = "{{ is_dm }}" === "True";
+        const RECIPIENT = "{{ recipient }}";
+
+        const socket = io();
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('message-input');
+        const channelList = document.getElementById('channel-list');
+        const onlineUsersUl = document.getElementById('online-users');
+        const createChannelModal = document.getElementById('createChannelModal');
+        const submitNewChannelBtn = document.getElementById('submitNewChannel');
+        const newChannelNameInput = document.getElementById('newChannelName');
+        const createChannelBtn = document.getElementById('createChannelBtn');
+        const startVoiceChatBtn = document.getElementById('startVoiceChatBtn');
+        const voiceChatStatusDiv = document.getElementById('voice-chat-status');
+
+        // Otomatik kaydırma
+        function scrollToBottom() {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Mesajı arayüze ekleme
+        function addMessage(data) {
+            const box = document.createElement('div');
+            
+            if (data.user === 'Server' || data.author === 'Server') {
+                box.className = 'server-message';
+                box.innerHTML = data.text;
+                messagesDiv.appendChild(box);
+                scrollToBottom();
+                return;
+            }
+            
+            box.className = 'message-box';
+            box.innerHTML = `
+                <div class="user-initial" style="background-color: ${data.author_color};">${data.author[0].toUpperCase()}</div>
+                <div class="content">
+                    <span class="username" style="color: ${data.author_color};">${data.author}</span>
+                    <span class="time">${data.time}</span>
+                    <div class="text">${data.text}</div>
+                </div>
+            `;
+            messagesDiv.appendChild(box);
+            scrollToBottom();
+        }
+
+        // Bağlantı ve Oda Yönetimi
+        socket.on('connect', () => {
+            console.log('Connected to server');
+            // Yeni bir odaya katılım talebi gönder (sayfa yüklendiğinde)
+            socket.emit('join_room_request', { room_name: CURRENT_ROOM });
+        });
+
+        socket.on('load_messages', (data) => {
+            messagesDiv.innerHTML = ''; // Eski mesajları temizle
+            data.messages.forEach(addMessage);
+        });
+        
+        // Yeni mesaj geldiğinde
+        socket.on('sohbet_mesaji', addMessage);
+        
+        // ENTER tuşuyla mesaj gönderme
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && messageInput.value.trim() !== '') {
+                const text = messageInput.value.trim();
+                const now = new Date();
+                const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
+                socket.emit('sohbet_mesaji', {
+                    author: USERNAME,
+                    text: text,
+                    room: CURRENT_ROOM,
+                    time: timeStr
+                });
+                messageInput.value = '';
+            }
+        });
+
+        // Online Kullanıcı ve Kanal Listesini Güncelleme
+        socket.on('update_users', (data) => {
+            // Online Kullanıcı Listesi Güncelleme
+            onlineUsersUl.innerHTML = '';
+            data.users.forEach(user => {
+                if (user.username !== USERNAME) {
+                    const listItem = document.createElement('a');
+                    listItem.href = `/dm/${user.username}`;
+                    listItem.className = 'list-item';
+                    listItem.style.color = user.color;
+                    listItem.innerHTML = `
+                        <div class="user-initial" style="background-color: ${user.color}; color: white;">${user.username[0].toUpperCase()}</div>
+                        ${user.username}
+                    `;
+                    onlineUsersUl.appendChild(listItem);
+                }
+            });
+
+            // Kanal Listesi Güncelleme
+            channelList.innerHTML = '';
+            data.active_channels.forEach(channel => {
+                const listItem = document.createElement('a');
+                listItem.href = `/chat?room=${channel}`;
+                listItem.className = `list-item ${CURRENT_ROOM === channel ? 'active' : ''}`;
+                listItem.innerHTML = `# ${channel}`;
+                channelList.appendChild(listItem);
+            });
+        });
+
+        // --- Grup/Kanal Oluşturma Mantığı ---
+        
+        createChannelBtn.addEventListener('click', () => {
+            createChannelModal.style.display = 'block';
+        });
+
+        document.querySelector('.close-btn').addEventListener('click', () => {
+            createChannelModal.style.display = 'none';
+        });
+        
+        window.onclick = function(event) {
+            if (event.target == createChannelModal) {
+                createChannelModal.style.display = 'none';
+            }
+        }
+
+        submitNewChannelBtn.addEventListener('click', () => {
+            const newChannelName = newChannelNameInput.value.trim();
+            if (newChannelName) {
+                socket.emit('create_channel', { channel_name: newChannelName });
+                createChannelModal.style.display = 'none';
+                newChannelNameInput.value = '';
+            }
+        });
+
+        socket.on('channel_success', (data) => {
+            alert(`Başarılı: ${data.message}`);
+            // Yeni odaya yönlendir
+            window.location.href = `/chat?room=${data.channel_name}`;
+        });
+        
+        socket.on('channel_error', (data) => {
+            alert(`Hata: ${data.message}`);
+        });
+
+        // --- Sesli Sohbet (WebRTC) Mantığı ---
+        startVoiceChatBtn.addEventListener('click', () => {
+            // Sesli sohbet sinyalini sunucuya gönder
+            socket.emit('start_voice_chat');
+        });
+
+        socket.on('voice_chat_status', (data) => {
+            voiceChatStatusDiv.style.display = 'block';
+            voiceChatStatusDiv.textContent = data.message;
+        });
+
+        socket.on('voice_chat_invite', (data) => {
+            // Kullanıcıya sesli sohbet daveti göster
+            if (confirm(`${data.user} odada sesli sohbete katılmanı istiyor. Katılmak ister misin?`)) {
+                // WebRTC bağlantı mantığı buraya eklenecek (Kullanıcı kamerası/mikrofonu açma vb.)
+                alert("Sesli sohbete katılma mantığı WebRTC API'leri ile tamamlanmalıdır.");
+            }
+        });
+
+        // İlk yüklemede en alta kaydır
+        scrollToBottom();
+    </script>
 </body>
 </html>
