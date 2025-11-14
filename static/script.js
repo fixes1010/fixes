@@ -1,7 +1,8 @@
-// static/script.js - KESİNLEŞMİŞ VE GÜNCEL VERSİYON
+// static/script.js - DM BAŞLATMA ÖZELLİĞİ EKLENDİ
 
 let currentUsername = ''; // Global tanımlıyoruz
 let currentChannel = '';
+let isDM = false; // DM odasında olup olmadığımızı tutar
 
 function togglePasswordVisibility(id, iconElement) {
     const passwordInput = document.getElementById(id);
@@ -30,16 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentChannelNameEl = document.getElementById('current-channel-name');
     const inputField = document.getElementById('input');
     const form = document.getElementById('form');
-    const onlineUsersList = document.getElementById('online-users-list'); // ID düzeltildi
+    const onlineUsersList = document.getElementById('online-users-list'); 
     
-    // onlineUsersList bulunamadıysa çıkış yap
-    if (!onlineUsersList) {
-        console.error("Online kullanıcı listesi DOM'da bulunamadı!");
-        return;
-    }
-
+    // HTML'den global değişkenleri al
     currentChannel = currentChannelNameEl.textContent.trim();
     
+    // DM miyiz kontrol et (chat.html'den gelen gizli bilgi)
+    isDM = document.body.dataset.isDm === 'True'; 
+
     const socket = io();
 
     const usernameElement = document.querySelector('.user-name');
@@ -55,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // GÜNCELLENDİ: Mesajlara AVATAR ekleme
+    // GÜNCELLENDİ: Mesajları gösteren ana fonksiyon
     function displayMessage(data) {
         // Eğer mesaj silinmişse, tekrar eklemeyi engelle
         if (document.querySelector(`.message-box[data-id="${data.id}"]`)) {
@@ -64,11 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const listItem = document.createElement('li');
         listItem.className = 'message-box';
-        // Mesaj ID ve yazar adını data attribute olarak ekle
         listItem.setAttribute('data-id', data.id);
         listItem.setAttribute('data-author', data.author);
         
         let actionsHTML = '';
+        // Mesajı silme/düzenleme yetkisi sadece yazarın olmalı
         if (data.author === currentUsername) {
              actionsHTML = `
                 <div class="message-actions">
@@ -78,16 +77,17 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
         
-        // Yazar adının ilk harfini al
         const initial = data.author.charAt(0).toUpperCase();
+        // data.author_color yerine data.color_code kullanıldı (main.py'deki alan adı)
+        const authorColor = data.author_color || data.color_code || '#7289da'; 
 
         listItem.innerHTML = `
-            <div class="message-avatar" style="background-color: ${data.author_color || '#7289da'};">
+            <div class="message-avatar" style="background-color: ${authorColor};">
                 ${initial}
             </div>
             
             <div class="message-content">
-                <div class="message-author" style="color: ${data.author_color || '#7289da'};">
+                <div class="message-author" style="color: ${authorColor};">
                     ${data.author} <span class="message-time">${data.time}</span>
                 </div>
                 <div class="message-text">${data.text}</div>
@@ -96,9 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         messagesList.appendChild(listItem);
-        messagesList.scrollTop = messagesList.scrollHeight; // En alta kaydır
+        messagesList.scrollTop = messagesList.scrollHeight;
 
-        // Dinamik olarak eklenen butonlara event listener ekle
         if (data.author === currentUsername) {
             attachActionListeners(listItem);
         }
@@ -136,22 +135,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.message-box[data-author="' + currentUsername + '"]').forEach(attachActionListeners);
 
 
-    // 🔥 DÜZELTİLMİŞ KOD: Online kullanıcı listesi ([object Object] hatası çözüldü)
+    // 🔥 DÜZELTİLMİŞ KOD: Online kullanıcı listesi ([object Object] hatası çözüldü) ve DM başlatma eklendi
     socket.on('update_users', function(data) {
-        onlineUsersList.innerHTML = '';
+        // Sadece grup kanallarındayken listeyi göster
+        if (isDM) return;
         
-        // Kullanıcıları alfabetik sıraya göre sırala (Daha düzenli görünmesi için)
+        onlineUsersList.innerHTML = '';
         data.users.sort((a, b) => a.username.localeCompare(b.username));
 
         data.users.forEach(user => {
             const listItem = document.createElement('li');
             listItem.className = 'online-user-item';
+            listItem.setAttribute('data-username', user.username); // DM için kullanıcı adını kaydet
 
-            // KRİTİK DÜZELTME: Kullanıcı adı objeden alınır (user.username)
             let userDisplay = user.username;
             if (user.username === currentUsername) {
                 listItem.style.fontWeight = 'bold';
             }
+            
+            // Kullanıcı adına tıklanınca DM başlat
+            listItem.addEventListener('click', () => {
+                if (user.username !== currentUsername) {
+                    window.location.href = `/dm/${user.username}`;
+                }
+            });
             
             listItem.innerHTML = `<span class="online-status-dot" style="background-color: ${user.color_code};"></span><span style="color: ${user.color_code}">${userDisplay}</span>`;
             onlineUsersList.appendChild(listItem);
@@ -166,6 +173,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (newChannel === currentChannel) return;
 
+            // DM odasından normal kanala geçişte yönlendirme
+            if (isDM) {
+                window.location.href = `/chat?channel=${newChannel}`;
+                return;
+            }
+            
+            // Normal kanaldan normal kanala geçişte Socket emit et (hızlı geçiş)
             const oldChannel = currentChannel;
             currentChannel = newChannel;
 
@@ -190,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageData = {
                 author: currentUsername,
                 text: messageText,
-                channel: currentChannel
+                channel: currentChannel // Mevcut grup kanalı veya DM odası adı
             };
             socket.emit('sohbet_mesaji', messageData);
             inputField.value = '';
@@ -200,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------- MESAJ ALMA VE YÖNETİMİ -----------------
 
     socket.on('sohbet_mesaji', function(data) {
+        // Sadece bulunduğumuz kanala (veya DM odasına) ait mesajları göster
         if (data.channel === currentChannel) {
             displayMessage(data);
         }
