@@ -6,7 +6,6 @@
     <title>Sohbet Odası - {{ current_room }}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        /* CSS GİZLİ KARAKTER HATALARINDAN KAÇINMAK İÇİN INLINE EDİLMİŞTİR */
         :root {
             --bg-dark: #1e1e1e;
             --bg-medium: #2d2d2d;
@@ -309,7 +308,7 @@
 
     <div id="video-container">
         <video id="local-video" autoplay muted></video>
-        </div>
+    </div>
 
     <script>
         // Server'dan gönderilen Python verileri
@@ -457,22 +456,50 @@
         });
 
         // --- Sesli Sohbet (WebRTC) Mantığı ---
-        startVoiceChatBtn.addEventListener('click', () => {
-            // Sesli sohbet sinyalini sunucuya gönder
-            socket.emit('start_voice_chat');
+        
+        let localStream;
+
+        async function startWebRTC() {
+            if (!voiceChatStatusDiv) return;
+
+            try {
+                // Kullanıcının mikrofonunu açma (video: false, audio: true)
+                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                
+                // Durum div'ini güncelle
+                voiceChatStatusDiv.style.display = 'block';
+                voiceChatStatusDiv.textContent = 'Mikrofon aktif. Diğer kullanıcı davet ediliyor...';
+                
+                // Sunucuya davet sinyali gönder
+                socket.emit('start_voice_chat');
+
+            } catch (err) {
+                console.error("Mikrofon erişimi reddedildi veya hata oluştu:", err);
+                voiceChatStatusDiv.style.display = 'block';
+                voiceChatStatusDiv.textContent = 'HATA: Sesli sohbet için mikrofon izni vermelisiniz.';
+                alert("Sesli sohbet için mikrofon izni vermelisiniz.");
+            }
+        }
+
+        // Buton tıklandığında WebRTC başlat
+        startVoiceChatBtn.addEventListener('click', startWebRTC);
+
+        // Sunucudan gelen davete yanıt verme (kullanıcı "Evet" derse)
+        socket.on('voice_chat_invite', (data) => {
+            if (confirm(`${data.user} odada sesli sohbete katılmanı istiyor. Katılmak ister misin?`)) {
+                // Daveti kabul ederse WebRTC başlat
+                startWebRTC();
+            }
         });
 
         socket.on('voice_chat_status', (data) => {
             voiceChatStatusDiv.style.display = 'block';
             voiceChatStatusDiv.textContent = data.message;
         });
-
-        socket.on('voice_chat_invite', (data) => {
-            // Kullanıcıya sesli sohbet daveti göster
-            if (confirm(`${data.user} odada sesli sohbete katılmanı istiyor. Katılmak ister misin?`)) {
-                // WebRTC bağlantı mantığı buraya eklenecek (Kullanıcı kamerası/mikrofonu açma vb.)
-                alert("Sesli sohbete katılma mantığı WebRTC API'leri ile tamamlanmalıdır.");
-            }
+        
+        // Sinyalleme verisi geldiğinde (Sunum için sadece konsola yazılır)
+        socket.on('webrtc_signal', (data) => {
+            console.log("WebRTC Sinyali Alındı. (Tam WebRTC mantığı kurulmadı, altyapı hazır)");
         });
 
         // İlk yüklemede en alta kaydır
