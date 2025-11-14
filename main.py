@@ -31,14 +31,14 @@ COLOR_PALETTE = [
     '#3498db', '#e67e22', '#1abc9c', '#e74c3c', '#95a5a6'
 ]
 def get_random_color():
-    return random.choice(COLOR_PALETTE)
+return random.choice(COLOR_PALETTE)
 
 # YENİ EKLENDİ: Avatar Arka Plan Renkleri (Daha kontrastlı)
 AVATAR_COLORS = [
     '#5865f2', '#f04747', '#43b581', '#faa61a', '#7289da', '#99aab5', '#36393f'
 ]
 def get_random_avatar_color():
-    return random.choice(AVATAR_COLORS)
+return random.choice(AVATAR_COLORS)
 
 # ----------------- VERİTABANI YÖNETİMİ -----------------
 
