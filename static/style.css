@@ -1,0 +1,463 @@
+/* static/style.css */
+
+/* Temel Değişkenler (Discord Renk Paleti) */
+:root {
+    --bg-darker: #202225;
+    --bg-dark: #2f3136;
+    --bg-light: #36393f;
+    --text-main: #dcddde;
+    --text-secondary: #72767d;
+    --accent-blue: #7289da;
+    --danger-red: #f04747;
+    --action-hover: rgba(4, 5, 5, 0.4); 
+}
+
+/* Genel Sıfırlama */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: var(--text-main);
+    overflow: hidden; 
+    height: 100%;
+}
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* ================================================= */
+/* GİRİŞ/KAYIT SAYFASI STİLLERİ      */
+/* ... (Giriş/Kayıt stilleri aynı) ... */
+
+.login-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--bg-darker);
+}
+.login-container {
+    background-color: var(--bg-dark);
+    padding: 32px;
+    border-radius: 5px;
+    box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.2);
+    width: 400px;
+    text-align: center;
+}
+.login-title {
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.login-subtitle {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+.login-label {
+    display: block;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 15px;
+    margin-bottom: 8px;
+}
+.login-input {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    background-color: var(--bg-darker);
+    border: 1px solid var(--bg-darker);
+    color: var(--text-main);
+    border-radius: 3px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+.login-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+.login-button {
+    width: 100%;
+    background-color: var(--accent-blue);
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.2s;
+}
+.login-button:hover {
+    background-color: #677bc4;
+}
+.error-message {
+    color: var(--danger-red);
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+.success-message {
+    color: #43b581; 
+    font-size: 14px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+.login-footer {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-top: 15px;
+}
+.register-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+.register-link:hover {
+    text-decoration: underline;
+}
+
+/* ŞİFRE GÖSTER/GİZLE STİLLERİ */
+.password-input-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 5px; 
+}
+.password-input-container .login-input {
+    padding-right: 40px; 
+}
+.password-toggle-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+
+/* ================================================= */
+/* SOHBET ARABİRİMİ (chat.html) STİLLERİ    */
+/* ================================================= */
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* 1. SUNUCU LİSTESİ */
+.server-sidebar {
+    width: 72px;
+    background-color: var(--bg-darker);
+    padding: 12px 0;
+    flex-shrink: 0; 
+    overflow-y: auto;
+}
+.server-icon {
+    width: 50px;
+    height: 50px;
+    background-color: var(--bg-dark);
+    border-radius: 50%;
+    margin: 8px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: border-radius 0.2s, background-color 0.2s;
+    text-decoration: none;
+}
+.server-icon:hover, .active-server {
+    border-radius: 30%; 
+    background-color: var(--accent-blue);
+}
+.logout-icon {
+    margin-top: 30px;
+    background-color: var(--danger-red);
+}
+.logout-icon:hover {
+    background-color: #cc4040;
+}
+
+/* 2. KANAL LİSTESİ */
+.channel-sidebar {
+    width: 240px;
+    background-color: var(--bg-dark);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+.channel-header {
+    padding: 12px 16px;
+    font-weight: bold;
+    font-size: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.channel-list {
+    flex-grow: 1;
+    padding: 8px 8px 12px 8px;
+    overflow-y: auto;
+}
+.channel-category {
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    padding: 0 8px;
+}
+.channel-item {
+    padding: 6px 8px;
+    margin-bottom: 2px;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 15px;
+    transition: background-color 0.1s;
+}
+.channel-item.active, .channel-item:hover {
+    background-color: rgba(79, 84, 92, 0.32);
+    color: var(--text-main);
+}
+
+/* AVATAR DÜZENLEMESİ İÇİN GÜNCELLENDİ */
+.user-info {
+    padding: 10px;
+    background-color: var(--bg-darker);
+    display: flex;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* YENİ: Kendi Avatarı */
+.user-info-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: bold;
+    color: white; 
+    flex-shrink: 0;
+}
+.user-details {
+    flex-grow: 1;
+    overflow: hidden;
+}
+.user-name {
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.user-status {
+    font-size: 12px;
+    color: #43b581;
+}
+
+
+/* 3. SOHBET ALANI */
+.chat-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg-light);
+}
+.chat-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    font-weight: 500;
+}
+.chat-header span {
+    color: var(--text-secondary);
+    margin-right: 8px;
+}
+.messages-list {
+    flex-grow: 1;
+    padding: 0 0 16px 0;
+    overflow-y: auto;
+}
+
+/* AVATAR DÜZENLEMESİ İÇİN GÜNCELLENDİ */
+.message-box {
+    padding: 5px 16px 5px 16px;
+    position: relative; 
+    transition: background-color 0.1s;
+    display: flex; 
+}
+.message-box:hover {
+    background-color: var(--action-hover); 
+}
+
+/* YENİ: Mesaj Avatarı Stili */
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: white; 
+    flex-shrink: 0; 
+    margin-top: 5px; 
+}
+
+/* Mesaj Actions için konumlandırma */
+.message-actions {
+    position: absolute;
+    top: -15px; 
+    right: 20px;
+    background-color: var(--bg-dark);
+    padding: 3px 6px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 10;
+}
+.message-box:hover .message-actions {
+    opacity: 1;
+}
+.message-actions i {
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin: 0 4px;
+    font-size: 14px;
+    transition: color 0.1s;
+}
+.message-actions .edit-btn:hover {
+    color: #f1c40f; 
+}
+.message-actions .delete-btn:hover {
+    color: var(--danger-red);
+}
+
+
+.message-content {
+    margin-left: 0; 
+    flex-grow: 1;
+}
+.message-author {
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 1.3;
+}
+.message-time {
+    color: var(--text-secondary);
+    font-size: 10px;
+    margin-left: 8px;
+    font-weight: normal;
+}
+.message-text {
+    font-size: 15px;
+    line-height: 1.3;
+    margin-bottom: 5px;
+    word-wrap: break-word; 
+}
+.bot-message .message-author {
+    color: #43b581;
+}
+
+/* MESAJ GİRİŞ ALANI */
+.chat-form { 
+    padding: 10px 16px 24px 16px; 
+    background-color: var(--bg-light);
+}
+.chat-input-container {
+    display: flex;
+    background-color: var(--bg-dark);
+    border-radius: 8px;
+    padding: 10px 16px;
+}
+#input { 
+    flex-grow: 1; 
+    border: none;
+    background: none;
+    color: var(--text-main);
+    font-size: 15px;
+    padding: 0;
+}
+#input:focus { outline: none; }
+.chat-form button { 
+    background: none; 
+    border: none; 
+    color: var(--text-secondary);
+    font-weight: bold;
+    cursor: pointer;
+    padding-left: 10px;
+    transition: color 0.2s;
+}
+.chat-form button:hover {
+    color: var(--text-main);
+}
+
+/* ================================================= */
+/* 4. ONLINE KULLANICI LİSTESİ STİLLERİ */
+/* ================================================= */
+
+.user-list-sidebar {
+    width: 240px;
+    background-color: var(--bg-light); 
+    flex-shrink: 0;
+    padding: 12px 8px;
+    overflow-y: auto;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.user-list-category {
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: bold;
+    padding: 0 8px 8px 8px;
+    margin-top: 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+}
+
+.online-users-list {
+    padding: 0; 
+}
+
+.online-user-item {
+    padding: 6px 8px;
+    margin-bottom: 2px;
+    border-radius: 3px;
+    color: var(--text-main); 
+    font-size: 15px;
+    font-weight: 500;
+    transition: background-color 0.1s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.online-user-item:hover {
+    background-color: var(--bg-dark);
+}
+
+.online-status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #43b581; 
+    margin-right: 8px;
+}
