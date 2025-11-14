@@ -25,10 +25,10 @@ DATABASE = 'chat.db'
 DEFAULT_CHANNELS = ['genel-sohbet', 'duyurular', 'kod-yardimi']
 online_users = {} 
 
-# Kullanıcı Adı Renkleri
+# Kullanıcı Adı Renkleri (Gizli karakter hataları temizlendi)
 COLOR_PALETTE = [
-    '#7289da', '#43b581', '#faa61a', '#f1c40f', '#e91e63', '#9b59b6', 
-    '#3498db', '#e67e22', '#1abc9c', '#e74c3c', '#95a5a6'
+    '#7289da', '#43b581', '#faa61a', '#f1c40f', '#e91e63', '#9b59b6', 
+    '#3498db', '#e67e22', '#1abc9c', '#e74c3c', '#95a5a6'
 ]
 def get_random_color():
     return random.choice(COLOR_PALETTE)
@@ -118,7 +118,7 @@ def update_message_by_id(message_id, new_text, username):
     db.commit()
     return db.total_changes > 0
 
-# 🔥 KESİN DÜZELTME: Tablo varlığını kontrol ederek veri tabanı hatasını önler (500 Internal Error'ın nedeni).
+# 🔥 SON DÜZELTME: Tablo varlığını kontrol ederek veri tabanı hatasını önler (500 Internal Error'ın nedeni).
 def load_messages(channel): 
     db = get_db()
     
@@ -139,8 +139,7 @@ def load_messages(channel):
         print(f"HATA: Mesajlar yuklenirken beklenmedik bir sorun olustu: {e}")
         return []
 
-with app.app_context():
-    init_db()
+# DİKKAT: Render Start Command'da çalıştırmak için init_db() çağrısı kaldırıldı.
 
 def broadcast_user_list():
     emit('update_users', {'users': list(online_users.values())}, broadcast=True)
