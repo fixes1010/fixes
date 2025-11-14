@@ -1,4 +1,4 @@
-// static/script.js - AVATAR DESTEĞİ, RENK, ONLINE LİSTE, MESAJ SİLME/DÜZENLEME
+// static/script.js - KESİNLEŞMİŞ VE GÜNCEL VERSİYON
 
 let currentUsername = ''; // Global tanımlıyoruz
 let currentChannel = '';
@@ -30,7 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentChannelNameEl = document.getElementById('current-channel-name');
     const inputField = document.getElementById('input');
     const form = document.getElementById('form');
-    const onlineUsersList = document.getElementById('online-users');
+    const onlineUsersList = document.getElementById('online-users-list'); // ID düzeltildi
+    
+    // onlineUsersList bulunamadıysa çıkış yap
+    if (!onlineUsersList) {
+        console.error("Online kullanıcı listesi DOM'da bulunamadı!");
+        return;
+    }
 
     currentChannel = currentChannelNameEl.textContent.trim();
     
@@ -130,20 +136,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.message-box[data-author="' + currentUsername + '"]').forEach(attachActionListeners);
 
 
-    // Online kullanıcı listesini güncelleyen olay işleyici
+    // 🔥 DÜZELTİLMİŞ KOD: Online kullanıcı listesi ([object Object] hatası çözüldü)
     socket.on('update_users', function(data) {
         onlineUsersList.innerHTML = '';
-        data.users.sort(); 
+        
+        // Kullanıcıları alfabetik sıraya göre sırala (Daha düzenli görünmesi için)
+        data.users.sort((a, b) => a.username.localeCompare(b.username));
 
         data.users.forEach(user => {
             const listItem = document.createElement('li');
             listItem.className = 'online-user-item';
 
-            if (user === currentUsername) {
+            // KRİTİK DÜZELTME: Kullanıcı adı objeden alınır (user.username)
+            let userDisplay = user.username;
+            if (user.username === currentUsername) {
                 listItem.style.fontWeight = 'bold';
             }
             
-            listItem.innerHTML = `<span class="online-status-dot"></span>${user}`;
+            listItem.innerHTML = `<span class="online-status-dot" style="background-color: ${user.color_code};"></span><span style="color: ${user.color_code}">${userDisplay}</span>`;
             onlineUsersList.appendChild(listItem);
         });
     });
