@@ -1,30 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sohbet | Discord Klonu</title>
+    <title>FIXES | Sohbet</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
-<body>
+<body data-is-dm="{% if is_dm %}True{% else %}False{% endif %}">
     <div class="app-container">
+        
         <div class="server-sidebar">
-            <div class="server-icon active-server" title="Python Klon Sunucusu">PY</div>
+            <div class="server-icon active-server" title="FIXES Ana Sunucu">F</div>
             <a href="{{ url_for('logout') }}" class="server-icon logout-icon" title="Çıkış Yap">X</a>
         </div>
 
         <div class="channel-sidebar">
             <div class="channel-header">
-                Python Klon Sunucusu
+                FIXES Ana Sunucu
             </div>
             <div class="channel-list">
+                
                 <div class="channel-category">METİN KANALLARI</div>
-                {% for channel in channels %}
-                <div class="channel-item {% if channel == current_channel %}active{% endif %}" 
+                {% for channel in all_channels %}
+                <div class="channel-item {% if not is_dm and channel == current_channel %}active{% endif %}" 
                      data-channel="{{ channel }}">
                     # {{ channel }}
                 </div>
                 {% endfor %}
+                
+                {% if is_dm %}
+                <div class="channel-category">DİREKT MESAJLAR</div>
+                <div class="channel-item dm-item active">
+                    <i class="fas fa-comment"></i> {{ recipient }}
+                </div>
+                {% endif %}
+
             </div>
             
             <div class="user-info">
@@ -40,19 +50,23 @@
 
         <div class="chat-area">
             <div class="chat-header">
-                <span>#</span> <span id="current-channel-name">{{ current_channel }}</span>
+                {% if is_dm %}
+                    <i class="fas fa-comment" style="margin-right: 8px;"></i> <span id="current-channel-name">{{ recipient }}</span>
+                {% else %}
+                    <span>#</span> <span id="current-channel-name">{{ current_channel }}</span>
+                {% endif %}
             </div>
 
             <ul id="messages" class="messages-list">
                 
-                {% for message in initial_messages %}
+                {% for message in messages %}
                 <li class="message-box" data-id="{{ message.id }}" data-author="{{ message.author }}">
-                    <div class="message-avatar" style="background-color: {{ message.author_color }};">
+                    <div class="message-avatar" style="background-color: {{ message.color_code }};">
                         {{ message.author[0]|upper }}
                     </div>
                     
                     <div class="message-content">
-                        <div class="message-author" style="color: {{ message.author_color }};">
+                        <div class="message-author" style="color: {{ message.color_code }};">
                             {{ message.author }} <span class="message-time">{{ message.time }}</span>
                         </div>
                         <div class="message-text">
@@ -70,32 +84,39 @@
                 </li>
                 {% endfor %}
                 
+                {% if not is_dm %}
                 <li class="message-box bot-message">
                     <div class="message-avatar" style="background-color: #43b581;">
                         B
                     </div>
                     <div class="message-content">
                         <div class="message-author">
-                            Klon Bot <span class="message-time">00:00</span>
+                            FIXES Bot <span class="message-time">00:00</span>
                         </div>
                         <div class="message-text">
                             Hoş geldiniz, **{{ username }}**! **#{{ current_channel }}** kanalına bağlandınız.
                         </div>
                     </div>
                 </li>
+                {% endif %}
+                
             </ul>
             
             <form id="form" class="chat-form" action="">
                 <div class="chat-input-container">
-                    <input id="input" autocomplete="off" placeholder="#{{ current_channel }}'e mesaj gönder" />
+                    {% if is_dm %}
+                        <input id="input" autocomplete="off" placeholder="{{ recipient }} kişisine mesaj gönder" />
+                    {% else %}
+                        <input id="input" autocomplete="off" placeholder="#{{ current_channel }}'e mesaj gönder" />
+                    {% endif %}
                     <button type="submit">Gönder</button>
                 </div>
             </form>
         </div>
         
-        <div class="user-list-sidebar">
-            <div class="user-list-category">ÇEVRİMİÇİ KULLANICILAR</div>
-            <ul id="online-users" class="online-users-list">
+        <div class="user-list-sidebar" id="user-list-sidebar" style="{% if is_dm %}display: none;{% endif %}">
+            <div class="user-list-category">{% if is_dm %}DM Ayarları{% else %}ÇEVRİMİÇİ KULLANICILAR{% endif %}</div>
+            <ul id="online-users-list" class="online-users-list">
                 </ul>
         </div>
     </div>
