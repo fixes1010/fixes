@@ -13,10 +13,11 @@
             --text-light: #ffffff;
             --text-secondary: #aaaaaa;
             --color-primary: #5865f2; /* Discord Mavisi */
-            --color-success: #33ff57;
-            --color-error: #ff3333;
+            --color-success: #43b581; /* Discord Yeşil */
+            --color-error: #f04747; /* Discord Kırmızı */
         }
 
+        /* GENEL VE RESET */
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
@@ -25,8 +26,10 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
+            flex-direction: row; /* Masaüstü görünümü */
         }
 
+        /* KENAR ÇUBUĞU */
         .sidebar {
             width: 250px;
             background-color: var(--bg-medium);
@@ -38,6 +41,7 @@
             flex-shrink: 0;
         }
 
+        /* SOHBET ALANI */
         .chat-area {
             flex-grow: 1;
             display: flex;
@@ -45,6 +49,7 @@
             overflow: hidden;
         }
 
+        /* BAŞLIK */
         .header {
             background-color: var(--bg-light);
             padding: 15px;
@@ -59,6 +64,7 @@
             font-weight: 600;
         }
 
+        /* MESAJLAR KUTUSU */
         .messages {
             flex-grow: 1;
             padding: 15px;
@@ -68,6 +74,7 @@
             gap: 10px;
         }
 
+        /* MESAJ GİRİŞ ALANI */
         .message-input-area {
             padding: 15px;
             background-color: var(--bg-light);
@@ -84,6 +91,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
+        /* BİREYSEL MESAJ KUTUSU */
         .message-box {
             display: flex;
             align-items: flex-start;
@@ -101,17 +109,15 @@
             font-weight: bold;
             font-size: 14px;
             flex-shrink: 0;
-            background-color: #f99f1e; /* Varsayılan Avatar Rengi */
-        }
-
-        .message-box .content {
-            flex-grow: 1;
+            color: white;
+            background-color: var(--color-primary); /* Varsayılan Avatar Rengi */
         }
 
         .message-box .content .username {
             font-weight: bold;
             margin-right: 8px;
             font-size: 14px;
+            color: var(--color-primary); /* Kullanıcı adını belirginleştir */
         }
 
         .message-box .content .time {
@@ -126,6 +132,7 @@
             font-size: 15px;
         }
 
+        /* SUNUCU MESAJLARI */
         .server-message {
             text-align: center;
             font-style: italic;
@@ -134,10 +141,37 @@
             margin: 10px 0;
         }
 
+        /* LİSTELER (KANAL/KULLANICI) */
         .channel-list, .user-list {
             list-style: none;
             padding: 0;
             margin: 10px 0;
+        }
+
+        /* KANAL SİLME BUTONU CSS (YENİ EKLENEN) */
+        .channel-item-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+
+        .channel-item-wrapper .list-item {
+            flex-grow: 1;
+        }
+
+        .delete-channel-btn {
+            color: var(--color-error); /* Kırmızı renk */
+            font-size: 14px;
+            cursor: pointer;
+            padding: 8px 5px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            margin-left: 5px;
+        }
+
+        .delete-channel-btn:hover {
+            background-color: rgba(240, 71, 71, 0.2);
         }
 
         .list-item {
@@ -150,7 +184,7 @@
             align-items: center;
             gap: 10px;
             color: var(--text-light);
-            text-decoration: none; /* Link stilini kaldırma */
+            text-decoration: none;
         }
 
         .list-item:hover {
@@ -169,11 +203,9 @@
             margin-top: 15px;
             margin-bottom: 5px;
             text-transform: uppercase;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
         
+        /* BUTONLAR */
         .sidebar-actions button {
             width: 100%;
             padding: 10px;
@@ -191,319 +223,11 @@
             background-color: #4752c4;
         }
 
+        /* MODAL */
         .modal {
             display: none;
             position: fixed;
             z-index: 1000;
             left: 0;
             top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.7);
-        }
-
-        .modal-content {
-            background-color: var(--bg-medium);
-            margin: 15% auto;
-            padding: 25px;
-            border-radius: 8px;
-            width: 80%;
-            max-width: 400px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        /* Sesli Sohbet Bölümü */
-        .voice-chat-status {
-            background-color: #4CAF50;
-            color: white;
-            padding: 8px;
-            border-radius: 4px;
-            text-align: center;
-            margin-top: 10px;
-            display: none; /* Başlangıçta gizli */
-        }
-
-        #video-container {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 250px;
-            height: 150px;
-            background-color: black;
-            border: 2px solid var(--color-primary);
-            z-index: 100;
-            display: none; /* Başlangıçta gizli */
-        }
-
-        #local-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="sidebar">
-        <h3 style="color: var(--text-light); margin-bottom: 15px;">{{ username }}</h3>
-        
-        <div class="sidebar-actions">
-            <button id="createChannelBtn">Grup/Kanal Oluştur</button>
-            <button id="startVoiceChatBtn">Sesli Sohbet Başlat</button>
-            <div id="voice-chat-status" class="voice-chat-status"></div>
-            <a href="{{ url_for('logout') }}" style="text-align: center; margin-top: 10px;">Çıkış Yap</a>
-        </div>
-
-        <div class="sidebar-section-title">
-            Genel Kanallar
-        </div>
-        <ul id="channel-list" class="channel-list">
-            {% for channel in all_channels %}
-                <a href="{{ url_for('chat', room=channel) }}" class="list-item {% if current_room == channel %}active{% endif %}" data-room-name="{{ channel }}">
-                    # {{ channel }}
-                </a>
-            {% endfor %}
-        </ul>
-        
-        <div class="sidebar-section-title">
-            Çevrimiçi Kullanıcılar
-        </div>
-        <ul id="online-users" class="user-list">
-            </ul>
-    </div>
-
-    <div class="chat-area">
-        <div class="header">
-            <h2>{% if is_dm %}@ {{ recipient }}{% else %}# {{ current_room }}{% endif %}</h2>
-        </div>
-        <div id="messages" class="messages">
-            {% for message in messages %}
-                <div class="message-box">
-                    <div class="user-initial" style="background-color: {{ message.get('author_color', '#f99f1e') }};">{{ message.author[0].upper() }}</div>
-                    <div class="content">
-                        <span class="username" style="color: {{ message.get('author_color', '#f99f1e') }};">{{ message.author }}</span>
-                        <span class="time">{{ message.time }}</span>
-                        <div class="text">{{ message.text }}</div>
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-        <div class="message-input-area">
-            <input type="text" id="message-input" placeholder="Mesajınızı yazın..." autofocus>
-        </div>
-    </div>
-    
-    <div id="createChannelModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn">&times;</span>
-            <h3>Yeni Kanal Oluştur</h3>
-            <input type="text" id="newChannelName" placeholder="Kanal Adı (örn: proje-tartisma)">
-            <button id="submitNewChannel">Oluştur</button>
-        </div>
-    </div>
-
-    <div id="video-container">
-        <video id="local-video" autoplay muted></video>
-    </div>
-
-    <script>
-        // Server'dan gönderilen Python verileri
-        const USERNAME = "{{ username }}";
-        const CURRENT_ROOM = "{{ current_room }}";
-        const IS_DM = "{{ is_dm }}" === "True";
-        const RECIPIENT = "{{ recipient }}";
-
-        const socket = io();
-        const messagesDiv = document.getElementById('messages');
-        const messageInput = document.getElementById('message-input');
-        const channelList = document.getElementById('channel-list');
-        const onlineUsersUl = document.getElementById('online-users');
-        const createChannelModal = document.getElementById('createChannelModal');
-        const submitNewChannelBtn = document.getElementById('submitNewChannel');
-        const newChannelNameInput = document.getElementById('newChannelName');
-        const createChannelBtn = document.getElementById('createChannelBtn');
-        const startVoiceChatBtn = document.getElementById('startVoiceChatBtn');
-        const voiceChatStatusDiv = document.getElementById('voice-chat-status');
-
-        // Otomatik kaydırma
-        function scrollToBottom() {
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        // Mesajı arayüze ekleme
-        function addMessage(data) {
-            const box = document.createElement('div');
-            
-            if (data.user === 'Server' || data.author === 'Server') {
-                box.className = 'server-message';
-                box.innerHTML = data.text;
-                messagesDiv.appendChild(box);
-                scrollToBottom();
-                return;
-            }
-            
-            box.className = 'message-box';
-            box.innerHTML = `
-                <div class="user-initial" style="background-color: ${data.author_color};">${data.author[0].toUpperCase()}</div>
-                <div class="content">
-                    <span class="username" style="color: ${data.author_color};">${data.author}</span>
-                    <span class="time">${data.time}</span>
-                    <div class="text">${data.text}</div>
-                </div>
-            `;
-            messagesDiv.appendChild(box);
-            scrollToBottom();
-        }
-
-        // Bağlantı ve Oda Yönetimi
-        socket.on('connect', () => {
-            console.log('Connected to server');
-            // Yeni bir odaya katılım talebi gönder (sayfa yüklendiğinde)
-            socket.emit('join_room_request', { room_name: CURRENT_ROOM });
-        });
-
-        socket.on('load_messages', (data) => {
-            messagesDiv.innerHTML = ''; // Eski mesajları temizle
-            data.messages.forEach(addMessage);
-        });
-        
-        // Yeni mesaj geldiğinde
-        socket.on('sohbet_mesaji', addMessage);
-        
-        // ENTER tuşuyla mesaj gönderme
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && messageInput.value.trim() !== '') {
-                const text = messageInput.value.trim();
-                const now = new Date();
-                const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-
-                socket.emit('sohbet_mesaji', {
-                    author: USERNAME,
-                    text: text,
-                    room: CURRENT_ROOM,
-                    time: timeStr
-                });
-                messageInput.value = '';
-            }
-        });
-
-        // Online Kullanıcı ve Kanal Listesini Güncelleme
-        socket.on('update_users', (data) => {
-            // Online Kullanıcı Listesi Güncelleme
-            onlineUsersUl.innerHTML = '';
-            data.users.forEach(user => {
-                if (user.username !== USERNAME) {
-                    const listItem = document.createElement('a');
-                    listItem.href = `/dm/${user.username}`;
-                    listItem.className = 'list-item';
-                    listItem.style.color = user.color;
-                    listItem.innerHTML = `
-                        <div class="user-initial" style="background-color: ${user.color}; color: white;">${user.username[0].toUpperCase()}</div>
-                        ${user.username}
-                    `;
-                    onlineUsersUl.appendChild(listItem);
-                }
-            });
-
-            // Kanal Listesi Güncelleme
-            channelList.innerHTML = '';
-            data.active_channels.forEach(channel => {
-                const listItem = document.createElement('a');
-                listItem.href = `/chat?room=${channel}`;
-                listItem.className = `list-item ${CURRENT_ROOM === channel ? 'active' : ''}`;
-                listItem.innerHTML = `# ${channel}`;
-                channelList.appendChild(listItem);
-            });
-        });
-
-        // --- Grup/Kanal Oluşturma Mantığı ---
-        
-        createChannelBtn.addEventListener('click', () => {
-            createChannelModal.style.display = 'block';
-        });
-
-        document.querySelector('.close-btn').addEventListener('click', () => {
-            createChannelModal.style.display = 'none';
-        });
-        
-        window.onclick = function(event) {
-            if (event.target == createChannelModal) {
-                createChannelModal.style.display = 'none';
-            }
-        }
-
-        submitNewChannelBtn.addEventListener('click', () => {
-            const newChannelName = newChannelNameInput.value.trim();
-            if (newChannelName) {
-                socket.emit('create_channel', { channel_name: newChannelName });
-                createChannelModal.style.display = 'none';
-                newChannelNameInput.value = '';
-            }
-        });
-
-        socket.on('channel_success', (data) => {
-            alert(`Başarılı: ${data.message}`);
-            // Yeni odaya yönlendir
-            window.location.href = `/chat?room=${data.channel_name}`;
-        });
-        
-        socket.on('channel_error', (data) => {
-            alert(`Hata: ${data.message}`);
-        });
-
-        // --- Sesli Sohbet (WebRTC) Mantığı ---
-        
-        let localStream;
-
-        async function startWebRTC() {
-            if (!voiceChatStatusDiv) return;
-
-            try {
-                // Kullanıcının mikrofonunu açma (video: false, audio: true)
-                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-                
-                // Durum div'ini güncelle
-                voiceChatStatusDiv.style.display = 'block';
-                voiceChatStatusDiv.textContent = 'Mikrofon aktif. Diğer kullanıcı davet ediliyor...';
-                
-                // Sunucuya davet sinyali gönder
-                socket.emit('start_voice_chat');
-
-            } catch (err) {
-                console.error("Mikrofon erişimi reddedildi veya hata oluştu:", err);
-                voiceChatStatusDiv.style.display = 'block';
-                voiceChatStatusDiv.textContent = 'HATA: Sesli sohbet için mikrofon izni vermelisiniz.';
-                alert("Sesli sohbet için mikrofon izni vermelisiniz.");
-            }
-        }
-
-        // Buton tıklandığında WebRTC başlat
-        startVoiceChatBtn.addEventListener('click', startWebRTC);
-
-        // Sunucudan gelen davete yanıt verme (kullanıcı "Evet" derse)
-        socket.on('voice_chat_invite', (data) => {
-            if (confirm(`${data.user} odada sesli sohbete katılmanı istiyor. Katılmak ister misin?`)) {
-                // Daveti kabul ederse WebRTC başlat
-                startWebRTC();
-            }
-        });
-
-        socket.on('voice_chat_status', (data) => {
-            voiceChatStatusDiv.style.display = 'block';
-            voiceChatStatusDiv.textContent = data.message;
-        });
-        
-        // Sinyalleme verisi geldiğinde (Sunum için sadece konsola yazılır)
-        socket.on('webrtc_signal', (data) => {
-            console.log("WebRTC Sinyali Alındı. (Tam WebRTC mantığı kurulmadı, altyapı hazır)");
-        });
-
-        // İlk yüklemede en alta kaydır
-        scrollToBottom();
-    </script>
-</body>
-</html>
+            width

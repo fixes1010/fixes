@@ -1,40 +1,74 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Giriş Yap | Discord Klonu</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap</title>
+    <style>
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-medium: #2d2d2d;
+            --text-light: #ffffff;
+            --color-primary: #5865f2; /* Discord Mavisi */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            background-color: var(--bg-medium);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+        }
+        h1 {
+            color: var(--text-light);
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            outline: none;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--color-primary);
+            color: var(--text-light);
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #4752c4;
+        }
+    </style>
 </head>
-<body class="login-body">
+<body>
     <div class="login-container">
-        <h2 class="login-title">Tekrar Hoş Geldin!</h2>
-        <p class="login-subtitle">Devam etmek için hesabınla giriş yap.</p>
-        
+        <h1>Sohbet Odasına Giriş</h1>
         <form method="POST">
-            {% if error %}
-            <p class="error-message">{{ error }}</p>
-            {% endif %}
-            
-            {% if success %}
-            <p class="success-message">{{ success }}</p>
-            {% endif %}
-
-            <label for="username" class="login-label">KULLANICI ADI</label>
-            <input type="text" id="username" name="username" class="login-input" placeholder="Kayıtlı Kral Adınız" required maxlength="15">
-            
-            <label for="password" class="login-label">ŞİFRE</label>
-            <div class="password-input-container">
-                <input type="password" id="password_login" name="password" class="login-input" placeholder="Şifreniz" required minlength="6">
-                <i class="fa-solid fa-eye password-toggle-icon" onclick="togglePasswordVisibility('password_login', this)"></i>
-            </div>
-            
-            <button type="submit" class="login-button">Giriş Yap</button>
+            <input type="text" id="username" name="username" placeholder="Kullanıcı Adınız" required>
+            <button type="submit">Giriş Yap</button>
         </form>
-        
-        <p class="login-footer">
-            Henüz hesabın yok mu? <a href="{{ url_for('register') }}" class="register-link">Şimdi Kayıt Ol!</a>
-        </p>
     </div>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
